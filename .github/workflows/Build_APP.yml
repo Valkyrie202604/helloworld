@@ -1,0 +1,59 @@
+name: Build SSR-Plus for ImmortalWrt
+
+on:
+  workflow_dispatch: # 支持在 Actions 页面手动点击运行
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装编译环境
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
+          gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev swig zstd
+
+      - name: 下载并准备 SDK
+        run: |
+          # 下载你指定的 ImmortalWrt 24.10.2 SDK
+          wget https://downloads.openwrt.org/releases/24.10.2/targets/qualcommax/ipq807x/openwrt-sdk-24.10.2-qualcommax-ipq807x_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          
+          # 解压 .tar.zst 格式
+          tar -I zstd -xf *.tar.zst
+          
+          # 移动到统一文件夹名，方便后续步骤调用
+          # 使用通配符匹配解压出来的目录名
+          mv openwrt-sdk-* openwrt-sdk
+
+      - name: 更新并安装插件源
+        working-directory: ./openwrt-sdk
+        run: |
+          # 1. 更新 feeds
+          ./scripts/feeds update -a
+          
+          # 2. 拉取 helloworld 源码仓库
+          git clone https://github.com/Valkyrie2026/helloworld.git package/helloworld
+          
+          # 3. 安装所有插件定义
+          ./scripts/feeds install -a
+
+      - name: 配置与编译
+        working-directory: ./openwrt-sdk
+        run: |
+          # 自动根据新插件生成配置文件
+          make defconfig
+          
+          # 仅编译 luci-app-ssr-plus 及其依赖
+          # V=s 用于显示详细日志，方便报错时排查
+          make package/helloworld/luci-app-ssr-plus/compile V=s
+
+      - name: 上传编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-ssr-plus-ipq807x
+          # 编译出的 ipk 通常位于 bin/packages/ 目录下
+          path: openwrt-sdk/bin/packages/*/base/luci-app-ssr-plus*.ipk
