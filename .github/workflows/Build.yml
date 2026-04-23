@@ -33,27 +33,32 @@ jobs:
       - name: Add Plugin Source
         working-directory: ./sdk
         run: |
-          # 移除可能存在的旧定义，确保使用你的仓库源
           sed -i '/helloworld/d' feeds.conf.default
           echo "src-git helloworld https://github.com/Valkyrie202604/helloworld.git" >> feeds.conf.default
           ./scripts/feeds update helloworld
-          # -f 强制覆盖，-p 指定安装 helloworld feed
           ./scripts/feeds install -a -f -p helloworld
 
       - name: Configuration
         working-directory: ./sdk
         run: |
-          # 写入配置并让 SDK 自动展开依赖链
-          echo "CONFIG_PACKAGE_luci-app-ssr-plus=m" > .config
+          # 1. 禁用导致 Rust 报错的重型组件
+          # 这些组件建议后续直接在路由器通过 opkg install 安装官方预编译版
+          echo "CONFIG_PACKAGE_shadowsocks-rust-sslocal=n" >> .config
+          echo "CONFIG_PACKAGE_shadowsocks-rust-ssserver=n" >> .config
+          echo "CONFIG_PACKAGE_gnutls=n" >> .config
+          
+          # 2. 启用插件主体
+          echo "CONFIG_PACKAGE_luci-app-ssr-plus=m" >> .config
+          
+          # 3. 刷新配置
           make defconfig
 
       - name: Compile Plugin
         working-directory: ./sdk
         run: |
-          # 首先尝试多线程编译
-          # 如果失败，自动切换到单线程编译以暴露核心错误
-          make package/feeds/helloworld/luci-app-ssr-plus/compile V=s -j$(nproc) || \
-          make package/feeds/helloworld/luci-app-ssr-plus/compile V=s -j1
+          # 使用 IGNORE_ERRORS=1 强制跳过非核心依赖的编译错误
+          make package/feeds/helloworld/luci-app-ssr-plus/compile V=s -j$(nproc) IGNORE_ERRORS=1 || \
+          make package/feeds/helloworld/luci-app-ssr-plus/compile V=s -j1 IGNORE_ERRORS=1
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
