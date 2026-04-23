@@ -1,0 +1,16 @@
+- name: Update Feeds Configuration
+        run: |
+          cd openwrt-sdk
+          # 启发：像 Instruction 说的那样，把仓库加进 feeds
+          echo "src-git helloworld https://github.com/Valkyrie202604/helloworld.git" >> feeds.conf.default
+          
+          # 更新并安装，这会自动解决 90% 的依赖冲突
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Force Fix Dependencies (针对 SDK 环境的特殊启发)
+        run: |
+          cd openwrt-sdk
+          # 既然我们知道依赖容易报错，提前“强行安装”已知的二进制依赖
+          # 这比从源码编译 go/xz/ncurses 要稳得多
+          ./scripts/feeds install libopenssl libcurl ipset ip-full
