@@ -36,7 +36,7 @@ jobs:
           ./scripts/feeds update -a
           
           # 2. 拉取 helloworld 源码仓库
-          git clone https://github.com/Valkyrie2026/helloworld.git package/helloworld
+          git clone https://github.com/Valkyrie202604/helloworld.git package/helloworld
           
           # 3. 安装所有插件定义
           ./scripts/feeds install -a
